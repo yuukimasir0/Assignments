@@ -17,6 +17,7 @@ int label_num = 0;
 void error(char *s, ...);
 void statement(void);
 void make_va_table(void);
+void condition(int label_num_);
 
 void compiler(void) {
   init_getsym();
@@ -92,7 +93,7 @@ void expression() {
       if (i == va_table_size) break;
       if (strcmp(va_table[i], tok.charvalue) == 0) break;
     }
-    if (i == va_table_size) error("");
+    if (i == va_table_size) error("1");
     fprintf(outfile, "load r0,%d\n", i);
   } else {
     error("%sExpected numeric constant before operator. line: %d", SYNTAX_ERROR,
@@ -106,11 +107,9 @@ void expression() {
       strcpy(ope, "subr r0,r1\n");
     } else if (tok.value == TIMES) {
       strcpy(ope, "mulr r0,r1\n");
-    } else if (tok.value == SEMICOLON) {
+    } else {
       return;
-    } else
-      error("%sExpected operator before numeric constant. line: %d",
-            SYNTAX_ERROR, tok.sline);
+    } 
   } else if (tok.attr == RWORD && tok.value == DIV) {
     strcpy(ope, "divr r0,r1\n");
   } else
@@ -125,7 +124,7 @@ void expression() {
       if (i == va_table_size) break;
       if (strcmp(va_table[i], tok.charvalue) == 0) break;
     }
-    if (i == va_table_size) error("");
+    if (i == va_table_size) error("2");
     fprintf(outfile, "load r1,%d\n", i);
   } else
     error("%sExpected numeric constant after operator. line: ", SYNTAX_ERROR,
@@ -135,14 +134,13 @@ void expression() {
 }
 
 void statement(void) {
-  // printf("%d %d %s\n", tok.attr, tok.value, tok.charvalue);
   if (tok.attr == IDENTIFIER) {
     int i = 0;
     for (; i <= va_table_size; i++) {
       if (i == va_table_size) break;
       if (strcmp(va_table[i], tok.charvalue) == 0) break;
     }
-    if (i == va_table_size) error("");
+    if (i == va_table_size) error("3");
     getsym();
     if (tok.attr == SYMBOL && tok.value == BECOMES) {
       getsym();
@@ -178,57 +176,77 @@ void statement(void) {
               i);  // 出力
       getsym();
     } while (tok.attr == SYMBOL && tok.value == COMMA);
+  } else if(tok.attr == RWORD && tok.value == IF) {
+    int label_num_ = label_num;
+    label_num += 2;
+    condition(label_num_);
+    // fprintf(stderr, "%d %d %s\n", tok.attr, tok.value, tok.charvalue);
+    if(tok.attr != RWORD || tok.value != THEN) error("4");
+    getsym();
+    statement();
+    fprintf(outfile, "jmp L%d\n", label_num_ + 1);
+    fprintf(outfile, "L%d:\n", label_num_++);
+    if(tok.attr == RWORD && tok.value == ELSE) {
+      getsym();
+      statement();
+    }
+    fprintf(outfile, "L%d:\n", label_num_);
+  } else if(tok.attr == RWORD && tok.value == WHILE){
+    int label_num_ = label_num;
+    label_num += 2;
+    fprintf(outfile, "L%d:\n", label_num_ + 1);
+    condition(label_num_);
+    if(tok.attr != RWORD || tok.value != DO) error("5");
+    getsym();
+    // fprintf(stderr, "%d %d %s\n", tok.attr, tok.value, tok.charvalue);
+    statement();
+    fprintf(outfile, "jmp L%d\n", label_num_ + 1);
+    fprintf(outfile, "L%d:\n", label_num_);
   } else {
     expression();
   }
 }
 
-void condition() {
+void condition(int label_num_) {
   getsym();
   expression();
-  fprintf(outfile, "loadr r1,r0");
+  fprintf(outfile, "loadr r1,r0\n");
   switch (tok.value) {
-    case LESSTHAN:
+    case LESSTHAN:   
       getsym();
       expression();
-      fprintf(outfile, "compr r1,r0");
-      getsym();
-      if(tok.attr == RWORD && tok.value == THEN);
+      fprintf(outfile, "cmpr r1,r0\n");
+      fprintf(outfile, "jge L%d\n", label_num_);
       break;
     case LESSEQL:
       getsym();
       expression();
-      fprintf(outfile, "compr r1,r0");
-      getsym();
-      if(tok.attr == RWORD && tok.value == THEN);
+      fprintf(outfile, "cmpr r1,r0\n");
+      fprintf(outfile, "jgt L%d\n", label_num_);
       break;
     case GRTRTHAN:
       getsym();
       expression();
-      fprintf(outfile, "compr r1,r0");
-      getsym();
-      if(tok.attr == RWORD && tok.value == THEN);
+      fprintf(outfile, "cmpr r1,r0\n");
+      fprintf(outfile, "jle L%d\n", label_num_);
       break;
     case GRTREQL:
       getsym();
       expression();
-      fprintf(outfile, "compr r1,r0");
-      getsym();
-      if(tok.attr == RWORD && tok.value == THEN);
+      fprintf(outfile, "cmpr r1,r0\n");
+      fprintf(outfile, "jlt L%d\n", label_num_);
       break;
     case EQL:
       getsym();
       expression();
-      fprintf(outfile, "compr r1,r0");
-      getsym();
-      if(tok.attr == RWORD && tok.value == THEN);
+      fprintf(outfile, "cmpr r1,r0\n");
+      fprintf(outfile, "jnz L%d\n", label_num_);
       break;
     case NOTEQL:
       getsym();
       expression();
-      fprintf(outfile, "compr r1,r0");
-      getsym();
-      if(tok.attr == RWORD && tok.value == THEN);
+      fprintf(outfile, "cmpr r1,r0\n");
+      fprintf(outfile, "jz L%d\n", label_num_);
       break;
     default:
       break;
