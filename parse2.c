@@ -13,14 +13,10 @@ extern FILE *outfile;
 char *va_table[1 << 10];
 int va_table_size = 0;
 int label_num = 0;
-int T_label_num = 0;
-int T_label_max = 0;
 char Large_im[1 << 16] = "halt\n";
 
 void error(char *s, ...);
 void statement(void);
-void term();
-void factor();
 void make_va_table(void);
 int serch_va_table(void);
 void condition(int label_num_);
@@ -42,7 +38,6 @@ void compiler(void) {
         statement();
         if (tok.attr == SYMBOL && tok.value == PERIOD) {
           fprintf(outfile, "%s", Large_im);
-          for(int i = 0; i < T_label_max; i++) fprintf(outfile, "T%d: data 0\n", i);
           fprintf(stderr, "Parsing Completed. No errors found.\n");
         } else
           error("%sAt the end, a period is required. line: %d", SYNTAX_ERROR,
@@ -97,62 +92,49 @@ int serch_va_table() {
 }
 
 void expression() {
-  term();
-  if(tok.attr == SYMBOL && tok.value == PLUS) {
-    getsym();
-    expression();
-    fprintf(outfile, "load r0,T%d\n", --T_label_num);
-    fprintf(outfile, "add r0,T%d\n", --T_label_num);
-    fprintf(outfile, "store r0,T%d\n", T_label_num);
-  } else if(tok.attr == SYMBOL && tok.value == MINUS) {
-    getsym();
-    expression();
-    fprintf(outfile, "load r0,T%d\n", --T_label_num - 1);
-    fprintf(outfile, "sub r0,T%d\n", T_label_num--);
-    fprintf(outfile, "store r0,T%d\n", T_label_num);
-  }
-}
-
-void term() {
-  factor();
-  getsym();
-  if(tok.attr == SYMBOL && tok.value == TIMES) {
-    getsym();
-    term();
-    fprintf(outfile, "load r0, T%d\n",--T_label_num);
-    fprintf(outfile, "mul r0, T%d\n",--T_label_num);
-    fprintf(outfile, "store r0, T%d\n",T_label_num);
-  } else if(tok.attr == SYMBOL && tok.value == DIV) {
-    getsym();
-    term();
-    fprintf(outfile, "load r0, T%d\n", --T_label_num - 1);
-    fprintf(outfile, "div r0, T%d\n", T_label_num--);
-    fprintf(outfile, "store r0, T%d\n", T_label_num);
-  }
-}
-
-void factor(){
-  int flg = 1;
-  if(tok.attr == SYMBOL && tok.value == MINUS) { flg = -1; getsym();}
-  if(tok.attr == IDENTIFIER) {
-    fprintf(outfile, "load r0,%d\n", serch_va_table());
-    fprintf(outfile, "store r0,T%d\n", T_label_num++);
-    T_label_max = T_label_max > T_label_num ? T_label_max : T_label_num;
-  } else if(tok.attr == NUMBER) {
-    // fprintf(stderr, "%d\n", tok.value);
+  // printf("%d\n", tok.attr);
+  if (tok.attr == NUMBER) {
     if (tok.value >= 1 << 16) {
-      sprintf(Large_im, "%s\nL%d: %d\n", Large_im, label_num, flg * tok.value);
+      sprintf(Large_im, "%s\nL%d: %d", Large_im, label_num, tok.value);
       fprintf(outfile, "load r0,L%d\n", label_num++);
     } else {
-      fprintf(outfile, "loadi r0,%d\n", flg * tok.value);
+      fprintf(outfile, "loadi r0,%d\n", tok.value);
     }
-    fprintf(outfile, "store r0,T%d\n", T_label_num++);
-    T_label_max = T_label_max > T_label_num ? T_label_max : T_label_num;
-  } else if(tok.attr == SYMBOL && tok.value == LPAREN) {
-    getsym();
-    expression();
-    if(tok.attr != SYMBOL || tok.value != RPAREN) error("7");
+  } else if (tok.attr == IDENTIFIER) {
+    fprintf(outfile, "load r0,%d\n", serch_va_table());
+  } else {
+    error("%sExpected numeric constant before operator. line: %d", SYNTAX_ERROR,
+          tok.sline);
   }
+  getsym();
+  if (tok.attr == SYMBOL){ if(tok.value != PLUS && tok.value != MINUS && tok.value != TIMES) return; } 
+  else if (tok.attr != RWORD || tok.value != DIV) return;
+  int tok_tmp = tok.value;  
+  getsym();
+  if (tok.attr == NUMBER) {
+    fprintf(outfile, "loadi r1,%d\n", tok.value);
+  } else if (tok.attr == IDENTIFIER) {
+    fprintf(outfile, "load r1,%d\n", serch_va_table());
+  } else
+    error("%sExpected numeric constant after operator. line: ", SYNTAX_ERROR,
+          tok.sline);
+  switch (tok_tmp) {
+  case PLUS:
+    fprintf(outfile, "addr r0,r1\n");
+    break;
+  case MINUS:
+    fprintf(outfile, "subr r0,r1\n");
+    break;
+  case TIMES:
+    fprintf(outfile, "mulr r0,r1\n");
+    break;
+  case DIV:
+    fprintf(outfile, "divr r0,r1\n");
+    break;
+  default:
+    break;
+  }
+  getsym();
 }
 
 void statement(void) {
