@@ -13,9 +13,12 @@ extern FILE *outfile;
 char *va_table[1 << 10];
 int va_table_size = 0;
 int label_num = 0;
-int T_label_num = 0;
-int T_label_max = 0;
 char Large_im[1 << 16] = "halt\n";
+int ident[1 << 10][1 << 10];
+int num[1 << 10][1 << 10];
+int num_size[1 << 10];
+int num_now = 0;
+int BR_num;
 
 void error(char *s, ...);
 void statement(void);
@@ -42,7 +45,6 @@ void compiler(void) {
         statement();
         if (tok.attr == SYMBOL && tok.value == PERIOD) {
           fprintf(outfile, "%s", Large_im);
-          for(int i = 0; i < T_label_max; i++) fprintf(outfile, "T%d: data 0\n", i);
           fprintf(stderr, "Parsing Completed. No errors found.\n");
         } else
           error("%sAt the end, a period is required. line: %d", SYNTAX_ERROR,
@@ -88,6 +90,7 @@ void make_va_table() {
     if (tok.attr != SYMBOL || tok.value != SEMICOLON) error("2");
     getsym();
   }
+  BR_num = va_table_size;
 }
 
 int serch_va_table() {
@@ -98,60 +101,191 @@ int serch_va_table() {
 
 void expression() {
   term();
-  if(tok.attr == SYMBOL && tok.value == PLUS) {
-    getsym();
-    expression();
-    fprintf(outfile, "load r0,T%d\n", --T_label_num);
-    fprintf(outfile, "add r0,T%d\n", --T_label_num);
-    fprintf(outfile, "store r0,T%d\n", T_label_num);
-  } else if(tok.attr == SYMBOL && tok.value == MINUS) {
-    getsym();
-    expression();
-    fprintf(outfile, "load r0,T%d\n", --T_label_num - 1);
-    fprintf(outfile, "sub r0,T%d\n", T_label_num--);
-    fprintf(outfile, "store r0,T%d\n", T_label_num);
+  while(tok.attr == SYMBOL && (tok.value == PLUS || tok.value == MINUS)) {
+    switch(tok.value){
+      case PLUS:
+        getsym();
+        term();
+        if(ident[num_now][num_size[num_now] - 2] == 1) {
+          fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "add r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "addi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else {
+            fprintf(outfile, "add r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        } else if(ident[num_now][num_size[num_now] - 2] == 0) {
+          fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "add r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "addi r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
+          } else {
+            fprintf(outfile, "add r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        } else {
+          fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "add r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "addi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else {
+            fprintf(outfile, "add r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        }
+        break;
+      case MINUS:
+        getsym();
+        term();
+        if(ident[num_now][num_size[num_now] - 2] == 1) {
+          fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "sub r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "subi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else {
+            fprintf(outfile, "sub r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        } else if(ident[num_now][num_size[num_now] - 2] == 0) {
+          fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "sub r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "subi r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
+          } else {
+            fprintf(outfile, "sub r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        } else {
+          fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "sub r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "subi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else {
+            fprintf(outfile, "sub r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        }
+        break;
+    }  
+  }
+  if(num_now == 0 && num_size[0] == 1) {
+    if(ident[0][0] == 1) {
+      fprintf(outfile, "load r0,%d\n", num[0][0]);
+    } else if(ident[0][0] == 0) {
+      fprintf(outfile, "loadi r0,%d\n", num[0][0]);
+    } else {
+      fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
+    }
+    num_size[0]--;
   }
 }
 
 void term() {
   factor();
-  getsym();
-  if(tok.attr == SYMBOL && tok.value == TIMES) {
-    getsym();
-    term();
-    fprintf(outfile, "load r0, T%d\n",--T_label_num);
-    fprintf(outfile, "mul r0, T%d\n",--T_label_num);
-    fprintf(outfile, "store r0, T%d\n",T_label_num);
-  } else if(tok.attr == SYMBOL && tok.value == DIV) {
-    getsym();
-    term();
-    fprintf(outfile, "load r0, T%d\n", --T_label_num - 1);
-    fprintf(outfile, "div r0, T%d\n", T_label_num--);
-    fprintf(outfile, "store r0, T%d\n", T_label_num);
+  while((tok.attr == SYMBOL && tok.value == TIMES) || (tok.attr == RWORD && tok.value == DIV)) {
+    switch(tok.value){
+      case TIMES:
+        getsym();
+        term();
+        if(ident[num_now][num_size[num_now] - 2] == 1) {
+          fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "mul r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "muli r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else {
+            fprintf(outfile, "mul r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        } else if(ident[num_now][num_size[num_now] - 2] == 0) {
+          fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "mul r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "muli r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
+          } else {
+            fprintf(outfile, "mul r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        } else {
+          fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "mul r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "muli r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else {
+            fprintf(outfile, "mul r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        }
+        break;
+      case DIV:
+        getsym();
+        term();
+        if(ident[num_now][num_size[num_now] - 2] == 1) {
+          fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "div r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "divi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else {
+            fprintf(outfile, "div r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        } else if(ident[num_now][num_size[num_now] - 2] == 0) {
+          fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "div r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "divi r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
+          } else {
+            fprintf(outfile, "div r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        } else {
+          fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
+          if(ident[num_now][num_size[num_now] - 1] == 1) {
+            fprintf(outfile, "div r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+            fprintf(outfile, "divi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
+          } else {
+            fprintf(outfile, "div r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
+          }
+          ident[num_now][--num_size[num_now] - 1] = 2;
+        }
+        break;
+    }  
   }
 }
 
 void factor(){
-  int flg = 1;
-  if(tok.attr == SYMBOL && tok.value == MINUS) { flg = -1; getsym();}
-  if(tok.attr == IDENTIFIER) {
-    fprintf(outfile, "load r0,%d\n", serch_va_table());
-    fprintf(outfile, "store r0,T%d\n", T_label_num++);
-    T_label_max = T_label_max > T_label_num ? T_label_max : T_label_num;
-  } else if(tok.attr == NUMBER) {
-    // fprintf(stderr, "%d\n", tok.value);
-    if (tok.value >= 1 << 16) {
-      sprintf(Large_im, "%s\nL%d: %d\n", Large_im, label_num, flg * tok.value);
-      fprintf(outfile, "load r0,L%d\n", label_num++);
-    } else {
-      fprintf(outfile, "loadi r0,%d\n", flg * tok.value);
-    }
-    fprintf(outfile, "store r0,T%d\n", T_label_num++);
-    T_label_max = T_label_max > T_label_num ? T_label_max : T_label_num;
-  } else if(tok.attr == SYMBOL && tok.value == LPAREN) {
-    getsym();
-    expression();
-    if(tok.attr != SYMBOL || tok.value != RPAREN) error("7");
+  switch (tok.attr){
+    case IDENTIFIER:
+      ident[num_now][num_size[num_now]] = 1;
+      num[num_now][num_size[num_now]++] = serch_va_table();
+      getsym();
+      return;
+    case NUMBER:
+      ident[num_now][num_size[num_now]] = 0;
+      num[num_now][num_size[num_now]++] = tok.value;
+      getsym();
+      return;
+    case SYMBOL:
+      if(tok.value == LPAREN) {
+        num_now++;
+        getsym();
+        expression();
+      } else if(tok.value == RPAREN) {
+        num_now--;
+        getsym();
+      }
   }
 }
 
