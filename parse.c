@@ -27,6 +27,7 @@ void factor();
 void make_va_table(void);
 int serch_va_table(void);
 void condition(int label_num_);
+void culc(char*);
 
 void compiler(void) {
   init_getsym();
@@ -99,6 +100,40 @@ int serch_va_table() {
   error("1");
 }
 
+void culc(char* s){
+  if(ident[num_now][num_size[num_now] - 2] == 1) {
+    fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
+    if(ident[num_now][num_size[num_now] - 1] == 1) {
+      fprintf(outfile, "%s r0,%d\nstore r0,%d\n", s, num[num_now][--num_size[num_now]], BR_num++);
+    } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+      fprintf(outfile, "%si r0,%d\nstore r0,%d\n", s, num[num_now][--num_size[num_now]], BR_num++);
+    } else {
+      fprintf(outfile, "%s r0,%d\nstore r0,%d\n", s, BR_num - 1, BR_num - 1);
+    }
+    ident[num_now][--num_size[num_now] - 1] = 2;
+  } else if(ident[num_now][num_size[num_now] - 2] == 0) {
+    fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
+    if(ident[num_now][num_size[num_now] - 1] == 1) {
+      fprintf(outfile, "%s r0,%d\nstore r0,%d\n", s, num[num_now][num_size[num_now] - 1], BR_num++);
+    } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+      fprintf(outfile, "%si r0,%d\nstore r0,%d\n", s, num[num_now][num_size[num_now] - 1], BR_num++);
+    } else {
+      fprintf(outfile, "%s r0,%d\nstore r0,%d\n", s, BR_num - 1, BR_num - 1);
+    }
+    ident[num_now][--num_size[num_now] - 1] = 2;
+    } else {
+    fprintf(outfile, "load r0,%d\n", --BR_num);
+    if(ident[num_now][num_size[num_now] - 1] == 1) {
+      fprintf(outfile, "%s r0,%d\nstore r0,%d\n", s, num[num_now][--num_size[num_now]], BR_num++);
+    } else if(ident[num_now][num_size[num_now] - 1] == 0) {
+      fprintf(outfile, "%si r0,%d\nstore r0,%d\n", s, num[num_now][--num_size[num_now]], BR_num++);
+    } else {
+      fprintf(outfile, "%s r0,%d\nstore r0,%d\n", s, BR_num - 1, BR_num - 1);
+    }
+    ident[num_now][--num_size[num_now] - 1] = 2;
+  }
+}
+
 void expression() {
   term();
   while(tok.attr == SYMBOL && (tok.value == PLUS || tok.value == MINUS)) {
@@ -106,72 +141,12 @@ void expression() {
       case PLUS:
         getsym();
         term();
-        if(ident[num_now][num_size[num_now] - 2] == 1) {
-          fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "add r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "addi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else {
-            fprintf(outfile, "add r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        } else if(ident[num_now][num_size[num_now] - 2] == 0) {
-          fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "add r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "addi r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
-          } else {
-            fprintf(outfile, "add r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        } else {
-          fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "add r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "addi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else {
-            fprintf(outfile, "add r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        }
+        culc("add");
         break;
       case MINUS:
         getsym();
         term();
-        if(ident[num_now][num_size[num_now] - 2] == 1) {
-          fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "sub r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "subi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else {
-            fprintf(outfile, "sub r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        } else if(ident[num_now][num_size[num_now] - 2] == 0) {
-          fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "sub r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "subi r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
-          } else {
-            fprintf(outfile, "sub r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        } else {
-          fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "sub r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "subi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else {
-            fprintf(outfile, "sub r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        }
+        culc("sub");
         break;
     }  
   }
@@ -181,7 +156,7 @@ void expression() {
     } else if(ident[0][0] == 0) {
       fprintf(outfile, "loadi r0,%d\n", num[0][0]);
     } else {
-      fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
+      fprintf(outfile, "load r0,%d\n", --BR_num);
     }
     num_size[0]--;
   }
@@ -194,72 +169,12 @@ void term() {
       case TIMES:
         getsym();
         term();
-        if(ident[num_now][num_size[num_now] - 2] == 1) {
-          fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "mul r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "muli r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else {
-            fprintf(outfile, "mul r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        } else if(ident[num_now][num_size[num_now] - 2] == 0) {
-          fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "mul r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "muli r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
-          } else {
-            fprintf(outfile, "mul r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        } else {
-          fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "mul r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "muli r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else {
-            fprintf(outfile, "mul r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        }
+        culc("mul");
         break;
       case DIV:
         getsym();
         term();
-        if(ident[num_now][num_size[num_now] - 2] == 1) {
-          fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "div r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "divi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else {
-            fprintf(outfile, "div r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        } else if(ident[num_now][num_size[num_now] - 2] == 0) {
-          fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "div r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "divi r0,%d\nstore r0,%d(BR)\n", num[num_now][num_size[num_now] - 1], BR_num++);
-          } else {
-            fprintf(outfile, "div r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        } else {
-          fprintf(outfile, "load r0,%d(BR)\n", --BR_num);
-          if(ident[num_now][num_size[num_now] - 1] == 1) {
-            fprintf(outfile, "div r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else if(ident[num_now][num_size[num_now] - 1] == 0) {
-            fprintf(outfile, "divi r0,%d\nstore r0,%d(BR)\n", num[num_now][--num_size[num_now]], BR_num++);
-          } else {
-            fprintf(outfile, "div r0,%d(BR)\nstore r0,%d(BR)\n", BR_num - 1, BR_num - 1);
-          }
-          ident[num_now][--num_size[num_now] - 1] = 2;
-        }
+        culc("div");
         break;
     }  
   }
