@@ -8,7 +8,7 @@ do
     echo ""
 done
 
-for i in `seq 21 25`
-do
-    ./compiler samples/failure/ex${i}_fail.p
-done
+# for i in `seq 21 25`
+# do
+#     ./compiler samples/failure/ex${i}_fail.p
+# done
