@@ -162,10 +162,8 @@ void culc(char* s){
   }
   
   else if(ident[num_now][num_size[num_now] - 2] == 0) {
-    if(bope.ope != 1 || bope.reg != num[num_now][num_size[num_now] - 2]){
-      fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
-      bope.ope = 0;
-    }
+    fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
+    bope.ope = 0;
     // fprintf(stderr, "%s:  num[%d][%d] = %d\n", s, num_now, num_size[num_now] - 2, num[num_now][num_size[num_now] - 2]);      //stderrrrrrr
     if(ident[num_now][num_size[num_now] - 1] == 1) {
       fprintf(outfile, "%s r0,%d\nstore r0,%d\n", s, num[num_now][num_size[num_now] - 1], BR_num);
@@ -272,10 +270,8 @@ void expression() {
       }
     } else if(ident[0][0] == 0) {
       if(num[0][0] < 1 << 16) {
-        if(bope.ope != 1 || bope.reg != num[0][0]){
-          fprintf(outfile, "loadi r0,%d\n", num[0][0]);
-          bope.ope = 0;
-        }
+        fprintf(outfile, "loadi r0,%d\n", num[0][0]);
+        bope.ope = 0;
       } else {
         fprintf(outfile, "load r0,IMM%d\n", imm_num);
         sprintf(Large_im, "%s\nIMM%d: data %d", Large_im, imm_num++, num[0][0]);
