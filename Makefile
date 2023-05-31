@@ -17,7 +17,7 @@ PERL	= '/usr/bin/env perl'
 CC	= gcc
 LIBS	= -lics
 OPTS	= -O2 -Wall -I. -I$(INCDIR) -L$(LIBDIR) $(LIBS)
-OBJS	= main.o parse.o
+OBJS	= main.o parse2.o
 
 ASM	= $(BINDIR)/asm
 SR	= $(BINDIR)/sr
@@ -31,8 +31,8 @@ compiler: $(OBJS)
 
 main.o: main.c
 	$(CC) main.c -c $(OPTS)
-parse.o: parse.c
-	$(CC) parse.c -c $(OPTS)
+parse2.o: parse2.c
+	$(CC) parse2.c -c $(OPTS)
 
 asm:
 	$(ASM) a.asm > a.out

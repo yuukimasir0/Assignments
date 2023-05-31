@@ -1,5 +1,5 @@
 #!/bin/bash
-
+make
 for i in `seq 21 25`
 do
     ./compiler samples/ex$i.p
