@@ -14,7 +14,6 @@ extern FILE *outfile;
 char *va_table[1 << 10];
 char *va_table_proc[1 << 10];
 int va_table_size = 0;
-int max_va_table_size = 0;
 int va_table_size_proc = 0;
 int label_num = 0;
 int imm_num = 0;
@@ -34,7 +33,6 @@ int serch_va_table(void);
 int serch_va_table_proc(void);
 void condition(int label_num_);
 void culc(int key);
-void exe_BR(int BR_num, char* s1, char* s2, ...);
 
 void compiler(void) {
     init_getsym();
@@ -90,7 +88,6 @@ void make_va_table() {
         if(tok.attr != SYMBOL || tok.value != SEMICOLON) error("2");
         getsym();
     }
-    max_va_table_size = va_table_size;
 }
 
 int serch_va_table() {
@@ -107,20 +104,6 @@ int serch_va_table_proc() {
     for(; i <= va_table_size; i++)
         if(strcmp(va_table_proc[i], tok.charvalue) == 0) return i;
     return -1;
-}
-
-void exe_BR(int BR_num, char* s1, char* s2, ...) {
-    if(BR_num < 4) {
-        va_list args;
-        va_start(args, s2);
-        vfprintf(outfile, s1, args);
-        va_end(args);
-    } else {
-        va_list args;
-        va_start(args, s2);
-        vfprintf(outfile, s2, args);
-        va_end(args);
-    }
 }
 
 void culc(int key) {
@@ -145,36 +128,35 @@ void culc(int key) {
     if(ident[num_now][num_size[num_now] - 2] == 1) {
         fprintf(outfile, "load r0,%d\n", num[num_now][num_size[num_now] - 2]);
         if(ident[num_now][num_size[num_now] - 1] == 1) {
-            exe_BR(BR_num, "%s r0,%d\nloadr r%d,r0\n", "%s r0,%d\nstore r0,%d\n", s, num[num_now][--num_size[num_now]], BR_num);
-            ident[num_now][num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = BR_num++;
+            fprintf(outfile, "%s r0,%d\nloadr r%d,r0\n", s, num[num_now][--num_size[num_now]], BR_num);
+            ident[num_now][num_size[num_now]] = 2;
+            num[num_now][num_size[num_now]++] = BR_num++;
         } else if(ident[num_now][num_size[num_now] - 1] == 0) {
             int imm = num[num_now][--num_size[num_now]];
             int reg = BR_num++;
             if(imm < 1 << 16) {
-                exe_BR(reg, "%si r0,%d\nloadr r%d,r0\n", "%si r0,%d\nstore r0,%d\n", s, imm, reg);
+                fprintf(outfile, "%si r0,%d\nloadr r%d,r0\n", s, imm, reg);
             } else {
-                exe_BR(reg, "%s r0,IMM%d\nloadr r%d,r0\n", "%s r0,IMM%d\nstore r0,%d\n", s, imm_num, reg);
+                fprintf(outfile, "%s r0,IMM%d\nloadr r%d,r0\n", s, imm_num, reg);
                 sprintf(Large_im, "%s\nIMM%d: data %d", Large_im, imm_num++, imm);
             }
-            ident[num_now][num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = reg;
+            ident[num_now][num_size[num_now]] = 2;
+            num[num_now][num_size[num_now]++] = reg;
         } else {
-            exe_BR(BR_num - 1, "%sr r%d,r0\n", "%s r0,%d\nstore r0,%d\n", s, BR_num - 1, BR_num - 1);
-            ident[num_now][--num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = BR_num - 1;
+            fprintf(outfile, "%sr r%d,r0\n", s, BR_num - 1);
         }
+        ident[num_now][--num_size[num_now] - 1] = 2;
     } else if(ident[num_now][num_size[num_now] - 2] == 0) {
         if(ident[num_now][num_size[num_now] - 1] == 1) {
             if(num[num_now][num_size[num_now] - 2] < 1 << 16){
                 fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
             } else {
-                fprintf(outfile, "load r0,IMM%d\n", imm_num);
+                fprintf(outfile, "load r0,IMM%d", imm_num);
                 sprintf(Large_im, "%s\nIMM%d: data %d", Large_im, imm_num++, num[num_now][num_size[num_now] - 2]);
             }
-            exe_BR(BR_num, "%s r0,%d\nloadr r%d,r0\n", "%s r0,%d\nstore r0,%d\n", s, num[num_now][num_size[num_now] - 1], BR_num);
-            ident[num_now][num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = BR_num++;
+            fprintf(outfile, "%s r0,%d\nloadr r%d,r0\n", s, num[num_now][num_size[num_now] - 1], BR_num);
+            ident[num_now][num_size[num_now]] = 2;
+            num[num_now][num_size[num_now]++] = BR_num++;
         } else if(ident[num_now][num_size[num_now] - 1] == 0) {
             int imm = num[num_now][num_size[num_now] - 2];
             switch(key) {
@@ -193,66 +175,46 @@ void culc(int key) {
             }
             int reg = BR_num++;
             if(imm < 1 << 16) {
-                exe_BR(reg, "loadi r0,%d\nloadr r%d,r0\n", "loadi r0,%d\n store r0,%d\n", s, imm, reg);
+                fprintf(outfile, "loadi r0,%d\nloadr r%d,r0\n", s, imm, reg);
             } else {
-                exe_BR(reg, "load r0,IMM%d\nloadr r%d,r0\n", "load r0,IMM%d\n store r0,%d\n", s, imm, reg);
+                fprintf(outfile, "load r0,IMM%d\nloadr r%d,r0\n", s, imm_num, reg);
                 sprintf(Large_im, "%s\nIMM%d: data %d", Large_im, imm_num++, imm);
             }
-            ident[num_now][num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = reg;
+            ident[num_now][num_size[num_now]] = 2;
+            num[num_now][num_size[num_now]++] = reg;
         } else {
             if(num[num_now][num_size[num_now] - 2] < 1 << 16){
-                fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now]-- - 2]);
+                fprintf(outfile, "loadi r0,%d\n", num[num_now][num_size[num_now] - 2]);
             } else {
-                fprintf(outfile, "load r0,IMM%d\n", imm_num);
-                sprintf(Large_im, "%s\nIMM%d: data %d", Large_im, imm_num++, num[num_now][num_size[num_now]-- - 2]);
+                fprintf(outfile, "load r0,IMM%d", imm_num);
+                sprintf(Large_im, "%s\nIMM%d: data %d", Large_im, imm_num++, num[num_now][num_size[num_now] - 2]);
             }
-            exe_BR(BR_num - 1, "%sr r%d,r0\n", "%s r0,%d\nstore r0,%d\n", s, BR_num - 1, BR_num - 1);
-            ident[num_now][num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = BR_num - 1;
+            fprintf(outfile, "%sr r%d,r0\n", s, BR_num - 1);
         }
+        ident[num_now][--num_size[num_now]] = 2;
     } else {
         if(ident[num_now][num_size[num_now] - 1] == 1) {
             --BR_num;
-            if(BR_num < 4){
-                fprintf(outfile, "%s r%d,%d\n", s, BR_num, num[num_now][--num_size[num_now]]);
-            } else {
-                fprintf(outfile, "load r0,%d\n%s r0,%d\n", BR_num, s, num[num_now][--num_size[num_now]]);
-            }            
-            ident[num_now][num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = BR_num++;
+            fprintf(outfile, "%s r%d,%d\n", s, BR_num, num[num_now][--num_size[num_now]]);
+            ident[num_now][num_size[num_now]] = 2;
+            num[num_now][num_size[num_now]++] = BR_num++;
         } else if(ident[num_now][num_size[num_now] - 1] == 0) {
             --BR_num;
             int imm = num[num_now][--num_size[num_now]];
             int reg = BR_num++;
             if(imm < 1 << 16) {
-                if(BR_num < 4) {
-                    fprintf(outfile, "%si r%d,%d\n", s, reg, imm);
-                } else {
-                    fprintf(outfile, "load r0,%d\n %si r0,%d\nstore r0,%d", reg, s, imm, reg);
-                }
+                fprintf(outfile, "%si r%d,%d\n", s, reg, imm);
             } else {
-                if(BR_num < 4) {
-                    fprintf(outfile, "%s r%d,IMM%d\n", s, reg, imm_num);
-                } else {
-                    fprintf(outfile, "load r0,%d\n %s r0,IMM%d\nstore r0,%d\n", reg, s, imm_num, reg);
-                }
+                fprintf(outfile, "%s r%d,IMM%d\n", s, reg, imm_num);
                 sprintf(Large_im, "%s\nIMM%d: data %d", Large_im, imm_num++, imm);
             }
-            ident[num_now][num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = reg;
+            ident[num_now][num_size[num_now]] = 2;
+            num[num_now][num_size[num_now]++] = reg;
         } else {
             BR_num--;
-            if(BR_num == 4) {
-                fprintf(outfile, "load r0,%d\n%sr r%d,r0\n", BR_num, s, BR_num - 1);
-            } else if(BR_num < 4){
-                fprintf(outfile, "%sr r%d,r%d\n", s, BR_num - 1, BR_num);
-            } else {
-                fprintf(outfile, "load r0,%d\n%s r0,%d\nstore r0,%d\n", BR_num - 1, s, BR_num, BR_num - 1);
-            }
-            ident[num_now][--num_size[num_now] - 1] = 2;
-            num[num_now][num_size[num_now] - 1] = BR_num - 1;
+            fprintf(outfile, "%sr r%d,r%d\n", s, BR_num - 1, BR_num);
         }
+        ident[num_now][--num_size[num_now]] = 2;
     }
 }
 
@@ -276,7 +238,7 @@ void expression() {
             }
         } else {
             --BR_num;
-            exe_BR(BR_num, "loadr r0, r%d\n", "load r0, %d\n", BR_num);
+                fprintf(outfile, "loadr r0,r%d\n", BR_num);
         }
         num_size[0]--;
     }
@@ -313,11 +275,6 @@ void factor() {
                     ident[num_now - 1][num_size[num_now - 1]] = 2;
                     num[num_now - 1][num_size[num_now - 1]++] = num[num_now][--num_size[num_now]];
                     num_now--;
-                    // fprintf(stderr, "%d: ", num_now);
-                    // for(int i = 0; i < num_size[num_now]; i++) {
-                    //     fprintf(stderr, "(%d, %d)", ident[num_now][i], num[num_now][i]);
-                    // }
-                    // fprintf(stderr, "\n");
                     getsym();
                 } else error("10");
             } else if(tok.value == MINUS) {
@@ -385,7 +342,7 @@ void statement(void) {
             if(tok.attr == IDENTIFIER) {
               int reg = serch_va_table();
               fprintf(outfile, "load r0,%d\n", reg); // 出力
-              fprintf(outfile, "writed r0\nloadi r0,'\\n'\nwritec r0\n");
+              fprintf(outfile, "writed r0\nloadi r1,'\\n'\nwritec r1\n");
             }
             getsym();
         } while(tok.attr == SYMBOL && tok.value == COMMA);
@@ -423,42 +380,42 @@ void statement(void) {
 void condition(int label_num_) {
     getsym();
     expression();
-    exe_BR(BR_num, "loadr r%d, r0\n", "store r0,%d\n", BR_num);
+    fprintf(outfile, "loadr r%d,r0\n", BR_num);
     switch(tok.value) {
         case LESSTHAN :
             getsym();
             expression();
-            exe_BR(BR_num, "cmpr r%d,r0\n", "cmp r0,%d\n", BR_num);
+            fprintf(outfile, "cmpr r1,r0\n");
             fprintf(outfile, "jge L%d\n", label_num_);
             break;
         case LESSEQL :
             getsym();
             expression();
-            exe_BR(BR_num, "cmpr r%d,r0\n", "cmp r0,%d\n", BR_num);
+            fprintf(outfile, "cmpr r1,r0\n");
             fprintf(outfile, "jgt L%d\n", label_num_);
             break;
         case GRTRTHAN :
             getsym();
             expression();
-            exe_BR(BR_num, "cmpr r%d,r0\n", "cmp r0,%d\n", BR_num);
+            fprintf(outfile, "cmpr r1,r0\n");
             fprintf(outfile, "jle L%d\n", label_num_);
             break;
         case GRTREQL :
             getsym();
             expression();
-            exe_BR(BR_num, "cmpr r%d,r0\n", "cmp r0,%d\n", BR_num);
+            fprintf(outfile, "cmpr r1,r0\n");
             fprintf(outfile, "jlt L%d\n", label_num_);
             break;
         case EQL :
             getsym();
             expression();
-            exe_BR(BR_num, "cmpr r%d,r0\n", "cmp r0,%d\n", BR_num);
+            fprintf(outfile, "cmpr r1,r0\n");
             fprintf(outfile, "jnz L%d\n", label_num_);
             break;
         case NOTEQL :
             getsym();
             expression();
-            exe_BR(BR_num, "cmpr r%d,r0\n", "cmp r0,%d\n", BR_num);
+            fprintf(outfile, "cmpr r1,r0\n");
             fprintf(outfile, "jz L%d\n", label_num_);
             break;
         default :
